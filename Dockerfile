@@ -10,8 +10,5 @@ COPY . .
 # Install dependencies
 RUN npm install
 
-# Install browsers (optional here, but safe)
-RUN npx playwright install
-
 # Run the script with dynamic VIN support
 CMD ["node", "index.js"]
