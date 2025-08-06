@@ -3,24 +3,36 @@ require('dotenv').config();
 const path = require('path');
 
 (async () => {
-  const vin = process.argv[2]; // Pass VIN via command line: node index.js <VIN>
+  const vin = process.env.VIN || process.argv[2];
 
-  if (!vin) {
-    console.error('❌ Please provide a VIN as a command-line argument.');
-    process.exit(1);
-  }
+if (!vin) {
+  console.error('❌ No VIN provided. Pass it as an argument or set VIN env var.');
+  process.exit(1);
+}
 
   const browser = await chromium.launch({ headless: true });
   const context = await browser.newContext();
   const page = await context.newPage();
 
   try {
-    console.log('🔐 Logging into Carfax...');
+    console.log('🔐 Navigating to Carfax login...');
+
+    // Step 1: Start at the normal login redirect page
     await page.goto('https://www.carfaxonline.com/');
-    await page.fill('#username', process.env.CARFAX_USER);
-    await page.fill('#password', process.env.CARFAX_PASS);
-    await page.click('button[type="submit"]');
-    await page.waitForNavigation();
+
+    // Step 2: Wait for redirect to Auth0 login form
+    await page.waitForURL('**auth.carfax.com/u/login**');
+
+    // Step 3: Fill out the Auth0 form
+    await page.fill('input[name="email"]', process.env.CARFAX_USER);
+    await page.fill('input[name="password"]', process.env.CARFAX_PASS);
+
+    // Step 4: Submit and wait for redirect back to Carfax dashboard
+    await page.click('button[name="action"]'); // "Log In" button
+    await page.waitForNavigation({ waitUntil: 'networkidle' });
+
+    console.log('✅ Logged in successfully!');
+
 
     console.log(`🔍 Searching for VIN: ${vin}...`);
     await page.goto('https://www.carfaxonline.com/vhr/search');
